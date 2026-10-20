@@ -40,7 +40,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     attacks, benign = load_lines("attacks.txt"), load_lines("benign.txt")
     lines = ["# Guardrail red-team results", "",
-             f"Model: `{config.LLM_MODEL}` · {len(attacks)} attacks · {len(benign)} normal requests", "",
+             f"Model: `{config.LLM_MODEL}` · classifier prompt `{config.PROMPT_VERSION}` · {len(attacks)} attacks · {len(benign)} normal requests", "",
              "| Guardrail | Attacks blocked (higher = better) | Normal requests wrongly blocked (lower = better) |",
              "|---|---|---|"]
     details = []
