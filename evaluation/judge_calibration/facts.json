@@ -1,0 +1,18 @@
+{
+  "portfolio": {
+    "total_value": 26700.0,
+    "allocation": {"equity": 0.5918, "bond": 0.1086, "cash": 0.2996},
+    "concentrated_positions": ["VTI"],
+    "holdings": [
+      {"symbol": "VTI", "asset_class": "equity", "quantity": 50, "price": 270.0, "value": 13500.0, "price_source": "Finnhub", "price_date": "2026-10-18", "price_status": "live"},
+      {"symbol": "AAPL", "asset_class": "equity", "quantity": 10, "price": 230.0, "value": 2300.0, "price_source": "Finnhub", "price_date": "2026-10-18", "price_status": "live"},
+      {"symbol": "BND", "asset_class": "bond", "quantity": 40, "price": 72.5, "value": 2900.0, "price_source": "Finnhub", "price_date": "2026-10-16", "price_status": "stale"},
+      {"symbol": "CASH", "asset_class": "cash", "quantity": 8000, "price": 1.0, "value": 8000.0, "price_source": "cash", "price_date": "2026-10-18", "price_status": "live"}
+    ]
+  },
+  "simulation": {
+    "success_probability": 0.09, "median": 641000, "bad_case_p10": 455000, "good_case_p90": 925000, "target": 1000000,
+    "inputs": {"current_value": 26700.0, "monthly_contribution": 1000, "years": 30},
+    "assumptions": {"expected_real_return": 0.0312, "volatility": 0.1042, "simulations": 10000, "money": "today's dollars (after inflation)"}
+  }
+}
