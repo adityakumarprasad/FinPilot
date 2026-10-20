@@ -69,7 +69,7 @@ def main():
     m = calibration_metrics(human, judged)
     text = "\n".join([
         "# Judge calibration results", "",
-        f"Model: `{config.LLM_MODEL}` · judge prompt `{config.PROMPT_VERSION}` · {len(cases)} reports", "",
+        f"Model: `{config.LLM_MODEL}` · judge version `{config.PROMPT_VERSION}` · {len(cases)} reports", "",
         "| Metric | Value | Meaning |", "|---|---|---|",
         f"| Mean absolute error | {m['mean_absolute_error']:.1f} points | average disagreement on a 0–10 scale |",
         f"| Correlation | {m['correlation']:.2f} | 1.0 = ranks reports exactly like the human |",
