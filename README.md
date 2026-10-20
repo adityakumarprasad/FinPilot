@@ -6,6 +6,8 @@ A LangGraph workflow of AI agents writes a personal financial plan. Every number
 
 [![CI](https://github.com/adityakumarprasad/FinPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/adityakumarprasad/FinPilot/actions/workflows/ci.yml)
 
+**Live demo: [finpilot-latest.onrender.com](https://finpilot-latest.onrender.com)** (API key `demo-key` is pre-filled; a free instance may take up to a minute to wake up, and a plan takes 1–2 minutes)
+
 ---
 
 ## Results at a glance
