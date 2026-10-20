@@ -39,7 +39,20 @@ def _clamp(value) -> int:
         return 0                      # missing or garbage rating counts as 0 (strict)
 
 
+# A report that invents numbers or gives unsafe advice must never pass, however good the rest is.
+# (Calibration v1 showed a plain sum let a report with an invented 79% probability score 8/10 and pass.)
+CRITICAL = ["numbers_match_facts", "safe_advice"]
+CRITICAL_FAIL_CAP = 4
+
+
+def total_score(criteria: dict) -> int:
+    score = sum(criteria.values())
+    if any(criteria[c] == 0 for c in CRITICAL):
+        score = min(score, CRITICAL_FAIL_CAP)
+    return score
+
+
 def judge(facts: dict, report: str) -> dict:
     answer = llm.ask_json(PROMPT.format(facts=json.dumps(facts, indent=1, default=str), report=report), name="judge")
     criteria = {c: _clamp(answer.get(c)) for c in CRITERIA}
-    return {"score": sum(criteria.values()), "criteria": criteria, "reasoning": answer.get("reasoning", "")}
+    return {"score": total_score(criteria), "criteria": criteria, "reasoning": answer.get("reasoning", "")}
