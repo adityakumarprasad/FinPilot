@@ -1,0 +1,27 @@
+[project]
+name = "finpilot"
+version = "0.1.0"
+description = "Multi-agent financial planner with LangGraph: real market data, Monte Carlo, red-teamed guardrails and a calibrated judge"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.150.0",
+    "httpx>=0.28.1",
+    "langchain-core>=1.6.12",
+    "langchain-google-genai>=4.4.2",
+    "langfuse>=5.0.2",
+    "langgraph>=1.2.16",
+    "numpy>=2.5.4",
+    "psycopg[binary]>=3.3.6",
+    "python-dotenv>=1.2.4",
+    "qstash>=3.4.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
