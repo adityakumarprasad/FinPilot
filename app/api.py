@@ -65,6 +65,16 @@ def create_job(req: PlanRequest, background_tasks: BackgroundTasks):
     return {"job_id": job_id, "status": "pending"}
 
 
+@app.get("/jobs/latest", dependencies=[Depends(require_api_key)])
+def latest_job():
+    """The most recent finished plan, so the page opens with real results instead of an empty screen.
+    (Declared before /jobs/{job_id}, otherwise "latest" would be read as a job id.)"""
+    job = db.get_latest_completed_job(config.DEMO_USER)
+    if job is None:
+        raise HTTPException(status_code=404, detail="No finished plan yet")
+    return job
+
+
 @app.get("/jobs/{job_id}", dependencies=[Depends(require_api_key)])
 def get_job(job_id: str):
     job = db.get_job(job_id)

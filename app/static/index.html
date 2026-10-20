@@ -1,187 +1,413 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FinPilot</title>
-  <!-- marked turns the AI's Markdown into HTML; DOMPurify strips any script/HTML an attacker smuggles in -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
-  <style>
-    :root { --bg: #f7f8fa; --card: #ffffff; --text: #1d2330; --muted: #667085; --line: #e4e7ec;
-            --accent: #2f6fed; --good: #12a150; --warn: #e08a00; --bad: #d92d20; --info: #3a7bd5; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #11141a; --card: #1a1f27; --text: #e6e9ef; --muted: #98a2b3; --line: #2b313c;
-              --accent: #6b9bff; --good: #3ccf7a; --warn: #f2a93b; --bad: #ff6b5e; --info: #6aa8ff; }
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
-    main { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
-    h1 { margin: 0 0 4px; } .muted { color: var(--muted); }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 16px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
-    input { padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 15px; }
-    button { margin-top: 14px; padding: 10px 22px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-size: 15px; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: wait; }
-    .steps { display: flex; flex-wrap: wrap; gap: 8px; }
-    .step { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-    .step.done { border-color: var(--good); color: var(--good); }
-    .step.active { border-color: var(--accent); color: var(--accent); }
-    .big { font-size: 34px; font-weight: 700; }
-    .meter { height: 12px; background: var(--line); border-radius: 999px; overflow: hidden; }
-    .meter > div { height: 100%; border-radius: 999px; }
-    .outcome { display: grid; grid-template-columns: 110px 1fr 110px; align-items: center; gap: 10px; margin: 8px 0; font-size: 14px; }
-    .target-note { font-size: 13px; color: var(--muted); }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
-    td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; }
-    .live { background: var(--good); } .cached { background: var(--info); } .stale { background: var(--warn); } .unavailable { background: var(--bad); }
-    .crit { display: grid; grid-template-columns: 170px 1fr 34px; gap: 10px; align-items: center; margin: 6px 0; font-size: 14px; }
-    .report h2 { font-size: 18px; margin-top: 20px; }
-    .alert { border-left: 4px solid var(--bad); }
-    .hidden { display: none; }
-    @media (max-width: 560px) { .outcome { grid-template-columns: 80px 1fr 80px; } .crit { grid-template-columns: 120px 1fr 30px; } }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FinPilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<!-- marked renders the AI's Markdown; DOMPurify strips any HTML or script an attacker smuggles in -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+/* Layout: a planning desk. Input slip and agent pipeline on the left, the plan's ledger on the right. */
+:root {
+  --paper: #f3f6f4; --surface: #ffffff; --ink: #13201a; --muted: #5b6a62; --line: #dbe3de;
+  --accent: #2b4fd1; --accent-soft: #e7ecfd;
+  --gain: #1d8a59; --warn: #b8730f; --loss: #c63f2e; --info: #2f78c4;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0d1311; --surface: #141c19; --ink: #e5ede8; --muted: #93a39a; --line: #26322d;
+    --accent: #8ea3ff; --accent-soft: #1d2648;
+    --gain: #4cc48a; --warn: #e8a64a; --loss: #f07160; --info: #6aa9ee;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0d1311; --surface: #141c19; --ink: #e5ede8; --muted: #93a39a; --line: #26322d;
+  --accent: #8ea3ff; --accent-soft: #1d2648;
+  --gain: #4cc48a; --warn: #e8a64a; --loss: #f07160; --info: #6aa9ee;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+[hidden] { display: none !important; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.eyebrow { font: 600 11px/1 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.top { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.brand h1 { font-size: 34px; font-weight: 700; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 2px 0 0; color: var(--muted); max-width: 60ch; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.chip[data-state="running"] .dot { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.chip[data-state="completed"] .dot { background: var(--gain); }
+.chip[data-state="blocked"] .dot, .chip[data-state="failed"] .dot { background: var(--loss); }
+@keyframes pulse { 50% { opacity: .3; } }
+
+/* desk grid */
+.desk { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .desk { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* form */
+form { display: grid; gap: 14px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
+input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--paper); color: var(--ink); font: 15px var(--font-body); }
+input[type="number"] { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.hint { font-size: 12px; color: var(--muted); margin: -6px 0 0; }
+button.primary { padding: 12px 16px; border: 0; border-radius: 10px; background: var(--accent); color: var(--surface);
+  font: 600 15px var(--font-body); cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
+button.primary:hover { transform: translateY(-1px); }
+button.primary:disabled { opacity: .55; cursor: progress; transform: none; }
+.error { color: var(--loss); font-size: 13px; margin: 0; }
+
+/* pipeline */
+.pipeline { list-style: none; margin: 14px 0 0; padding: 0; display: grid; }
+.pipeline li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; position: relative; padding-bottom: 14px; }
+.pipeline li:not(:last-child)::before { content: ""; position: absolute; left: 12px; top: 26px; bottom: 0; width: 2px; background: var(--line); }
+.pipeline li.done:not(:last-child)::before { background: var(--gain); }
+.pip { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface);
+  display: grid; place-items: center; font: 600 11px var(--font-data); color: var(--muted); }
+li.done .pip { border-color: var(--gain); background: var(--gain); color: var(--surface); }
+li.active .pip { border-color: var(--accent); color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+li.stopped .pip { border-color: var(--loss); background: var(--loss); color: var(--surface); }
+.pipeline strong { display: block; font-size: 14px; }
+.pipeline span { font-size: 12.5px; color: var(--muted); }
+
+/* results */
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.headline { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; }
+@media (max-width: 620px) { .headline { grid-template-columns: minmax(0, 1fr); } }
+.headline h2 { font-size: 26px; font-weight: 600; line-height: 1.25; }
+.headline h2 em { font-style: normal; color: var(--tone, var(--accent)); }
+.headline p { color: var(--muted); margin: 10px 0 0; max-width: 58ch; }
+.futures { display: grid; grid-template-columns: repeat(10, 12px); gap: 5px; }
+.futures i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.futures i.hit { background: var(--tone, var(--accent)); }
+.legend { font-size: 12px; color: var(--muted); margin-top: 8px; text-align: center; }
+
+.range svg { width: 100%; height: auto; display: block; }
+.range text { font: 12px var(--font-data); fill: var(--muted); }
+.range .strong { fill: var(--ink); font-weight: 600; }
+
+.ledger { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 1050px) { .ledger { grid-template-columns: minmax(0, 1fr); } }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.section-head h3 { font-size: 18px; font-weight: 600; }
+.total { font: 600 15px var(--font-data); }
+
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+th { text-align: left; font: 600 11px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 8px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 11px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+th.r, td.r { text-align: right; }
+.ticker { font: 600 14px var(--font-data); }
+.company { display: block; font-size: 12.5px; color: var(--muted); }
+.class { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--paper); border: 1px solid var(--line); color: var(--muted); text-transform: capitalize; }
+.weight { display: grid; gap: 4px; justify-items: end; }
+.weight .bar { width: 72px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.weight .bar b { display: block; height: 100%; background: var(--accent); }
+.pricecell { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; text-transform: capitalize; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status.live::before { background: var(--gain); } .status.cached::before { background: var(--info); }
+.status.stale::before { background: var(--warn); } .status.unavailable::before { background: var(--loss); }
+.src { display: block; font-size: 11.5px; color: var(--muted); }
+.flag { font-size: 11px; color: var(--warn); font-weight: 600; margin-left: 6px; }
+
+.score { font: 700 44px/1 var(--font-display); }
+.score small { font-size: 18px; color: var(--muted); font-weight: 500; }
+.criteria { display: grid; gap: 10px; margin-top: 16px; }
+.crit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13.5px; }
+.pips { display: flex; gap: 4px; }
+.pips i { width: 18px; height: 8px; border-radius: 3px; background: var(--line); }
+.pips.v2 i { background: var(--gain); } .pips.v1 i:first-child { background: var(--warn); }
+.verdict-note { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+.revised { display: inline-block; margin-top: 12px; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+.report { max-width: 72ch; }
+.report h2 { font-size: 19px; font-weight: 600; margin: 26px 0 8px; }
+.report h2:first-child { margin-top: 0; }
+.report ul { padding-left: 20px; }
+
+.empty h2, .blocked h2 { font-size: 22px; font-weight: 600; }
+.empty p, .blocked p { color: var(--muted); max-width: 60ch; }
+.blocked { border-color: var(--loss); }
+.blocked .reason { font-family: var(--font-data); font-size: 13px; color: var(--ink); background: var(--paper); border-radius: 8px; padding: 10px 12px; }
+.disclaimer { font-size: 12px; color: var(--muted); margin-top: 28px; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
 </head>
 <body>
-<main>
-  <h1>FinPilot</h1>
-  <div class="muted">A LangGraph team of AI agents writes your plan. Every number comes from real market prices and a 10,000-run Monte Carlo simulation.</div>
-
-  <section class="card">
-    <div class="grid">
-      <label>API key <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
-      <label>Age <input id="age" type="number" value="30"></label>
-      <label>Retirement age <input id="ret" type="number" value="60"></label>
-      <label>Monthly savings ($) <input id="monthly" type="number" value="1000"></label>
-      <label>Desired yearly income in retirement ($) <input id="income" type="number" value="40000"></label>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Fin<span>Pilot</span></h1>
+      <p>A team of AI agents writes your retirement plan. Every number comes from live market prices and 10,000 simulated market futures, and a reviewer agent checks the result.</p>
     </div>
-    <label style="margin-top:12px">Goals <input id="goals" value="Retire comfortably and buy a house in 5 years"></label>
-    <button id="go">Create plan</button>
-    <span id="status" class="muted" style="margin-left:12px"></span>
-  </section>
+    <div class="chip" id="statusChip" data-state="idle" role="status"><span class="dot"></span><span id="statusText">Ready</span></div>
+  </header>
 
-  <section id="progressCard" class="card hidden">
-    <strong>Agent workflow</strong>
-    <div id="steps" class="steps" style="margin-top:10px"></div>
-  </section>
-
-  <section id="blockedCard" class="card alert hidden"></section>
-
-  <div id="results" class="hidden">
-    <div class="grid">
-      <section class="card">
-        <div class="muted">Chance of reaching your goal</div>
-        <div id="prob" class="big"></div>
-        <div class="meter"><div id="probBar"></div></div>
-        <div id="targetNote" class="target-note" style="margin-top:8px"></div>
+  <div class="desk">
+    <aside class="stack">
+      <section class="panel">
+        <div class="eyebrow">Your situation</div>
+        <form id="planForm" style="margin-top:14px" novalidate>
+          <div class="row2">
+            <label for="age">Age <input id="age" type="number" min="18" max="90" value="30"></label>
+            <label for="ret">Retire at <input id="ret" type="number" min="30" max="90" value="60"></label>
+          </div>
+          <label for="monthly">Monthly savings ($) <input id="monthly" type="number" min="0" step="50" value="1000"></label>
+          <label for="income">Yearly income wanted in retirement ($) <input id="income" type="number" min="1" step="1000" value="40000"></label>
+          <p class="hint">In today's money. Your goal pot is this amount divided by 4% (the "4% rule").</p>
+          <label for="goals">Goals <input id="goals" maxlength="1000" value="Retire comfortably and buy a house in 5 years"></label>
+          <label for="key">API key <input id="key" value="demo-key" autocomplete="off" spellcheck="false"></label>
+          <p class="hint">The demo key works for everyone. Change it if you run your own private copy.</p>
+          <button class="primary" id="go" type="submit">Create my plan</button>
+          <p class="error" id="formError" hidden></p>
+        </form>
       </section>
-      <section class="card">
-        <div class="muted">Judge score</div>
-        <div id="score" class="big"></div>
-        <div id="criteria"></div>
-        <div id="revised" class="target-note"></div>
+
+      <section class="panel">
+        <div class="eyebrow">How your plan is made</div>
+        <ol class="pipeline" id="pipeline"></ol>
       </section>
-    </div>
+    </aside>
 
-    <section class="card">
-      <strong>Outcomes at retirement (today's money)</strong>
-      <div id="outcomes" style="margin-top:10px"></div>
-    </section>
+    <main class="stack" id="results" aria-live="polite">
+      <section class="panel empty" id="emptyState">
+        <h2>Your plan appears here</h2>
+        <p>Fill in your situation and choose "Create my plan". In about two minutes you'll see your odds of reaching your goal, your portfolio at today's prices, and a written plan checked by a reviewer agent.</p>
+      </section>
 
-    <section class="card">
-      <strong>Portfolio and price sources</strong>
-      <table style="margin-top:10px">
-        <thead><tr><th>Symbol</th><th>Class</th><th class="num">Price</th><th class="num">Value</th><th>Source</th><th>Status</th></tr></thead>
-        <tbody id="holdings"></tbody>
-      </table>
-    </section>
+      <section class="panel blocked" id="blockedState" hidden>
+        <div class="eyebrow">Request stopped</div>
+        <h2 style="margin-top:6px">The safety check blocked this request</h2>
+        <p>Your goals text looked like an instruction to the AI rather than a financial goal. Rephrase it as a plain goal, for example "Retire at 60 and travel".</p>
+        <p class="reason" id="blockedReason"></p>
+      </section>
 
-    <section class="card report"><div id="report"></div></section>
+      <div class="stack" id="plan" hidden>
+        <div class="banner"><span id="planSource"></span><span id="planDate" class="num"></span></div>
+
+        <section class="panel headline">
+          <div>
+            <div class="eyebrow">Chance of reaching your goal</div>
+            <h2 id="oddsText" style="margin-top:8px"></h2>
+            <p id="oddsDetail"></p>
+          </div>
+          <div>
+            <div class="futures" id="futures" aria-hidden="true"></div>
+            <div class="legend">each dot = 1 in 100 futures</div>
+          </div>
+        </section>
+
+        <div class="ledger">
+          <section class="panel range">
+            <div class="section-head"><h3>Where you could end up at retirement</h3><span class="eyebrow">today's money</span></div>
+            <svg id="rangeChart" viewBox="0 0 640 120" role="img" aria-label="Range of outcomes at retirement"></svg>
+          </section>
+
+          <section class="panel">
+            <div class="section-head"><h3>Reviewer's check</h3></div>
+            <div class="score num" id="score"></div>
+            <div class="criteria" id="criteria"></div>
+            <span class="revised" id="revised" hidden>Rewritten once after review</span>
+            <p class="verdict-note" id="verdictNote"></p>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="section-head"><h3>Your portfolio today</h3><span class="total" id="totalValue"></span></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Holding</th><th>Type</th><th class="r">Value</th><th class="r">Weight</th><th>Price</th></tr></thead>
+              <tbody id="holdings"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="eyebrow">Your written plan</div>
+          <article class="report" id="report" style="margin-top:14px"></article>
+          <p class="disclaimer">Educational information, not personalized financial advice. Projections use simplified assumptions: normally distributed real returns and a fixed allocation.</p>
+        </section>
+      </div>
+    </main>
   </div>
-</main>
+</div>
 
 <script>
-  const STEPS = ["guardrail", "portfolio", "retirement", "reporter", "judge"];
-  const LABELS = { guardrail: "🛡️ Guardrail", portfolio: "📊 Portfolio agent", retirement: "🎲 Retirement agent",
-                   reporter: "✍️ Reporter", judge: "⚖️ Judge" };
+  const STEPS = [
+    ["guardrail", "Safety check", "Screens your goals for misuse"],
+    ["portfolio", "Portfolio agent", "Values your holdings at live prices"],
+    ["retirement", "Retirement agent", "Runs 10,000 market futures"],
+    ["reporter", "Writer", "Drafts the plan from verified numbers"],
+    ["judge", "Reviewer", "Scores the plan and sends weak drafts back"],
+  ];
+  const CRITERIA = {
+    numbers_match_facts: "Numbers match the data", complete_sections: "All sections present",
+    sources_cited: "Price sources cited", safe_advice: "Safe, general advice", clarity: "Clear for a non-expert",
+  };
   const $ = (id) => document.getElementById(id);
-  const money = (n) => "$" + Math.round(n).toLocaleString();
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  // trim spaces and an accidental "API_KEY=" prefix copied from .env
+  const money = (n) => "$" + Math.round(n).toLocaleString("en-US");
+  const short = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M" : "$" + Math.round(n / 1e3) + "k";
   const apiKey = () => $("key").value.trim().replace(/^API_KEY=/, "");
   const headers = () => ({ "Content-Type": "application/json", "X-API-Key": apiKey() });
 
-  function renderSteps(progress, status) {
-    $("progressCard").classList.remove("hidden");
-    const finished = new Set(progress || []);
+  function setStatus(state, text) { $("statusChip").dataset.state = state; $("statusText").textContent = text; }
+
+  function renderPipeline(progress = [], status = "idle") {
+    const done = new Set(progress);
     const running = status === "running" || status === "pending";
-    const next = STEPS.find((s) => !finished.has(s));
-    $("steps").innerHTML = STEPS.map((s) => {
-      const cls = finished.has(s) ? "done" : (running && s === next ? "active" : "");
-      const icon = finished.has(s) ? "✅ " : (cls === "active" ? "⏳ " : "");
-      return `<span class="step ${cls}">${icon}${LABELS[s]}</span>`;
+    const next = STEPS.find(([id]) => !done.has(id));
+    $("pipeline").innerHTML = STEPS.map(([id, title, desc], i) => {
+      let cls = done.has(id) ? "done" : "";
+      if (status === "blocked" && id === "guardrail") cls = "stopped";
+      else if (running && next && id === next[0]) cls = "active";
+      const mark = cls === "done" ? "✓" : cls === "stopped" ? "✕" : String(i + 1);
+      return `<li class="${cls}"><div class="pip">${mark}</div><div><strong>${title}</strong><span>${desc}</span></div></li>`;
     }).join("");
   }
 
-  function renderResults(job) {
-    const sim = job.facts.simulation, portfolio = job.facts.portfolio;
-    const pct = Math.round(sim.success_probability * 100);
-    $("prob").textContent = pct + "%";
-    $("probBar").style.width = pct + "%";
-    $("probBar").style.background = pct >= 75 ? "var(--good)" : pct >= 40 ? "var(--warn)" : "var(--bad)";
-    $("targetNote").textContent = `Goal: ${money(sim.target)} (4% rule) · ${sim.assumptions.simulations.toLocaleString()} simulated futures`;
+  const tone = (p) => p >= 0.75 ? "var(--gain)" : p >= 0.4 ? "var(--warn)" : "var(--loss)";
 
-    const max = Math.max(sim.good_case_p90, sim.target) * 1.05;
-    const row = (label, value, color) =>
-      `<div class="outcome"><span>${label}</span><div class="meter"><div style="width:${(value / max) * 100}%;background:${color}"></div></div><span>${money(value)}</span></div>`;
-    $("outcomes").innerHTML = row("Bad market", sim.bad_case_p10, "var(--bad)") + row("Typical", sim.median, "var(--warn)")
-      + row("Good market", sim.good_case_p90, "var(--good)") + row("Your goal", sim.target, "var(--accent)");
-
-    $("holdings").innerHTML = portfolio.holdings.map((h) => `<tr><td>${esc(h.symbol)}</td><td>${esc(h.asset_class)}</td>
-      <td class="num">${money(h.price)}</td><td class="num">${money(h.value)}</td>
-      <td>${esc(h.price_source)}${h.price_date ? " · " + esc(h.price_date) : ""}</td>
-      <td><span class="badge ${esc(h.price_status)}">${esc(h.price_status)}</span></td></tr>`).join("");
-
-    $("score").textContent = `${job.judge_score}/10`;
-    $("criteria").innerHTML = Object.entries(job.judge_criteria || {}).map(([name, v]) =>
-      `<div class="crit"><span>${esc(name.replaceAll("_", " "))}</span><div class="meter"><div style="width:${v * 50}%;background:${v === 2 ? "var(--good)" : v === 1 ? "var(--warn)" : "var(--bad)"}"></div></div><span>${v}/2</span></div>`).join("");
-    $("revised").textContent = job.revisions ? "↻ Revised once after the judge's feedback" : "Passed on the first draft";
-
-    $("report").innerHTML = DOMPurify.sanitize(marked.parse(job.report || ""));
-    $("results").classList.remove("hidden");
+  function renderRange(sim) {
+    const L = 24, R = 616, max = Math.max(sim.good_case_p90, sim.target) * 1.08;
+    const x = (v) => L + (v / max) * (R - L);
+    const clampLabel = (v) => Math.min(Math.max(v, L + 60), R - 60);   // keep labels inside the drawing
+    const p10 = x(sim.bad_case_p10), p50 = x(sim.median), p90 = x(sim.good_case_p90), goal = x(sim.target);
+    const goalAbove = Math.abs(goal - p50) > 110;                       // keep the goal and typical labels apart
+    $("rangeChart").innerHTML = `
+      <line x1="${L}" y1="62" x2="${R}" y2="62" stroke="var(--line)" stroke-width="2"/>
+      <rect x="${p10}" y="50" width="${p90 - p10}" height="24" rx="12" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/>
+      <line x1="${p50}" y1="44" x2="${p50}" y2="80" stroke="var(--accent)" stroke-width="3"/>
+      <text x="${clampLabel(p50)}" y="34" text-anchor="middle" class="strong">Typical ${short(sim.median)}</text>
+      <text x="${clampLabel(p10)}" y="100" text-anchor="middle">Bad market ${short(sim.bad_case_p10)}</text>
+      <text x="${clampLabel(p90)}" y="100" text-anchor="middle">Good market ${short(sim.good_case_p90)}</text>
+      <line x1="${goal}" y1="40" x2="${goal}" y2="84" stroke="var(--ink)" stroke-width="2" stroke-dasharray="4 4"/>
+      <text x="${clampLabel(goal)}" y="${goalAbove ? 34 : 116}" text-anchor="middle" class="strong">Goal ${short(sim.target)}</text>
+      <text x="${L}" y="116">$0</text>`;
   }
 
-  $("go").onclick = async () => {
-    $("results").classList.add("hidden"); $("blockedCard").classList.add("hidden");
+  function renderPlan(job, sourceLabel) {
+    const sim = job.facts.simulation, portfolio = job.facts.portfolio;
+    const p = sim.success_probability, hits = Math.round(p * 100);
+    document.documentElement.style.setProperty("--tone", tone(p));
+    $("planSource").textContent = sourceLabel;
+    $("planDate").textContent = job.updated_at ? new Date(job.updated_at).toLocaleString() : "";
+    const monthly = job.request?.monthly_contribution ?? sim.inputs.monthly_contribution;
+    $("oddsText").innerHTML = `In <em>${hits} of 100</em> simulated futures, you reach your ${short(sim.target)} goal.`;
+    $("oddsDetail").textContent = `Saving ${money(monthly)} a month for ${sim.inputs.years} years, starting from ${money(portfolio.total_value)}. `
+      + `Expected real return ${(sim.assumptions.expected_real_return * 100).toFixed(1)}% a year, volatility ${(sim.assumptions.volatility * 100).toFixed(1)}%.`;
+    $("futures").innerHTML = Array.from({ length: 100 }, (_, i) => `<i class="${i < hits ? "hit" : ""}"></i>`).join("");
+    renderRange(sim);
+
+    $("totalValue").textContent = money(portfolio.total_value);
+    const concentrated = new Set(portfolio.concentrated_positions || []);
+    $("holdings").innerHTML = portfolio.holdings.map((h) => {
+      const weight = portfolio.total_value ? h.value / portfolio.total_value : 0;
+      const name = h.name && h.name !== h.symbol ? `<span class="company">${esc(h.name)}</span>` : "";
+      const flag = concentrated.has(h.symbol) ? `<span class="flag">over 20%</span>` : "";
+      const price = h.symbol === "CASH" ? "" : `<span class="num">${money(h.price)}</span>`;
+      return `<tr>
+        <td><span class="ticker">${esc(h.symbol)}</span>${flag}${name}</td>
+        <td><span class="class">${esc(h.asset_class)}</span></td>
+        <td class="r num">${money(h.value)}</td>
+        <td class="r"><div class="weight"><span class="num">${(weight * 100).toFixed(1)}%</span><span class="bar"><b style="width:${(weight * 100).toFixed(1)}%"></b></span></div></td>
+        <td><div class="pricecell">${price}<span class="status ${esc(h.price_status)}">${esc(h.price_status)}</span></div><span class="src">${esc(h.price_source)}${h.price_date ? " · " + esc(h.price_date) : ""}</span></td>
+      </tr>`;
+    }).join("");
+
+    $("score").innerHTML = `${esc(job.judge_score)}<small>/10</small>`;
+    $("criteria").innerHTML = Object.entries(job.judge_criteria || {}).map(([k, v]) =>
+      `<div class="crit"><span>${esc(CRITERIA[k] || k)}</span><span class="pips v${Number(v)}" title="${Number(v)} of 2"><i></i><i></i></span></div>`).join("");
+    $("revised").hidden = !job.revisions;
+    $("verdictNote").textContent = job.judge_notes || "";
+    $("report").innerHTML = DOMPurify.sanitize(marked.parse(job.report || ""));
+
+    $("emptyState").hidden = true; $("blockedState").hidden = true; $("plan").hidden = false;
+  }
+
+  async function loadLatest() {
+    try {
+      const r = await fetch("/jobs/latest", { headers: headers() });
+      if (!r.ok) return;                                   // no plan yet: the empty state stays
+      renderPlan(await r.json(), "Showing your most recent plan");
+      renderPipeline(STEPS.map(([id]) => id), "completed");
+      setStatus("completed", "Last plan loaded");
+    } catch { /* offline: the empty state stays */ }
+  }
+
+  $("planForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    $("formError").hidden = true;
     const body = { age: +$("age").value, retirement_age: +$("ret").value, monthly_contribution: +$("monthly").value,
                    desired_annual_income: +$("income").value, goals: $("goals").value };
+    if (body.retirement_age <= body.age) {
+      $("formError").textContent = "Retirement age must be higher than your current age."; $("formError").hidden = false; return;
+    }
     const res = await fetch("/jobs", { method: "POST", headers: headers(), body: JSON.stringify(body) });
-    const job = await res.json();
-    if (!res.ok) { $("status").textContent = "Error: " + JSON.stringify(job.detail); return; }
-    $("go").disabled = true;
-    renderSteps([], "pending");
+    const job = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      $("formError").textContent = res.status === 401 ? "That API key isn't accepted. Use demo-key, or the key from your own .env."
+        : res.status === 429 ? "Too many plans in one minute. Wait a moment and try again."
+        : "The plan couldn't start: " + JSON.stringify(job.detail ?? res.statusText);
+      $("formError").hidden = false; return;
+    }
+    $("go").disabled = true; $("go").textContent = "Working on your plan…";
+    setStatus("running", "Agents at work"); renderPipeline([], "running");
 
     const timer = setInterval(async () => {
       const r = await fetch("/jobs/" + job.job_id, { headers: headers() });
       if (!r.ok) return;
       const j = await r.json();
-      $("status").textContent = "Status: " + j.status;
-      renderSteps(j.progress, j.status);
+      renderPipeline(j.progress, j.status);
       if (!["completed", "failed", "blocked"].includes(j.status)) return;
       clearInterval(timer);
-      $("go").disabled = false;
-      if (j.status === "completed") renderResults(j);
+      $("go").disabled = false; $("go").textContent = "Create my plan";
+      if (j.status === "completed") { renderPlan(j, "Your new plan"); setStatus("completed", "Plan ready"); }
       if (j.status === "blocked") {
-        $("blockedCard").innerHTML = `<strong>🛡️ Request blocked by the guardrail</strong><p>${esc(j.error)}</p>
-          <p class="muted">Your goals text looked like an instruction to the AI. Please rephrase it as a financial goal.</p>`;
-        $("blockedCard").classList.remove("hidden");
+        $("blockedReason").textContent = j.error;
+        $("plan").hidden = true; $("emptyState").hidden = true; $("blockedState").hidden = false;
+        setStatus("blocked", "Request blocked");
       }
-      if (j.status === "failed") $("status").textContent = "Failed: " + j.error;
+      if (j.status === "failed") {
+        $("formError").textContent = "The plan couldn't be finished: " + j.error; $("formError").hidden = false;
+        setStatus("failed", "Plan failed");
+      }
     }, 2500);
-  };
+  });
+
+  renderPipeline();
+  loadLatest();
 </script>
 </body>
 </html>

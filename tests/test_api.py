@@ -46,3 +46,15 @@ def test_worker_endpoint_is_closed_without_queue(monkeypatch):
 def test_home_page_is_served_and_sanitizes_report():
     page = client.get("/").text
     assert "FinPilot" in page and "DOMPurify.sanitize" in page
+
+
+def test_latest_plan_is_returned(monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "")
+    monkeypatch.setattr(db, "get_latest_completed_job", lambda user_id: {"id": "job-9", "status": "completed"})
+    assert client.get("/jobs/latest").json()["id"] == "job-9"      # not mistaken for a job id
+
+
+def test_no_latest_plan_gives_404(monkeypatch):
+    monkeypatch.setattr(config, "API_KEY", "")
+    monkeypatch.setattr(db, "get_latest_completed_job", lambda user_id: None)
+    assert client.get("/jobs/latest").status_code == 404

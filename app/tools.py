@@ -16,7 +16,8 @@ def value_portfolio(user_id: str) -> dict:
             price, source, as_of, status = float(h["avg_cost"]), "purchase price", None, "unavailable"
         value = float(h["quantity"]) * price
         total += value
-        rows.append({"symbol": h["symbol"], "asset_class": h["asset_class"], "quantity": float(h["quantity"]),
+        rows.append({"symbol": h["symbol"], "name": h.get("name") or h["symbol"],
+                     "asset_class": h["asset_class"], "quantity": float(h["quantity"]),
                      "price": round(price, 2), "value": round(value, 2),
                      "price_source": source, "price_date": as_of, "price_status": status})
 

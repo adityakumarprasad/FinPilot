@@ -15,7 +15,7 @@ def conn():
 
 def get_holdings(user_id: str) -> list[dict]:
     with conn() as c:
-        return c.execute("SELECT symbol, quantity, avg_cost, asset_class FROM holdings WHERE user_id = %s",
+        return c.execute("SELECT symbol, name, quantity, avg_cost, asset_class FROM holdings WHERE user_id = %s",
                          (user_id,)).fetchall()
 
 
@@ -29,6 +29,12 @@ def create_job(user_id: str, request: dict) -> str:
 def get_job(job_id: str) -> dict | None:
     with conn() as c:
         return c.execute("SELECT * FROM jobs WHERE id = %s", (job_id,)).fetchone()
+
+
+def get_latest_completed_job(user_id: str) -> dict | None:
+    with conn() as c:
+        return c.execute("SELECT * FROM jobs WHERE user_id = %s AND status = 'completed' "
+                         "ORDER BY updated_at DESC LIMIT 1", (user_id,)).fetchone()
 
 
 def update_job(job_id: str, **fields):

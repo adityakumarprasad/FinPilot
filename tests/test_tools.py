@@ -3,7 +3,7 @@ from app import db, market, tools
 
 def test_portfolio_valuation_uses_live_prices_and_flags_concentration(monkeypatch):
     monkeypatch.setattr(db, "get_holdings", lambda user_id: [
-        {"symbol": "VTI", "quantity": 10, "avg_cost": 200, "asset_class": "equity"},
+        {"symbol": "VTI", "name": "Vanguard Total Stock Market ETF", "quantity": 10, "avg_cost": 200, "asset_class": "equity"},
         {"symbol": "CASH", "quantity": 1000, "avg_cost": 1, "asset_class": "cash"}])
     prices = {"VTI": {"symbol": "VTI", "price": 300.0, "source": "Finnhub", "as_of": "2026-10-18", "status": "live"},
               "CASH": {"symbol": "CASH", "price": 1.0, "source": "cash", "as_of": "2026-10-18", "status": "live"}}
@@ -12,6 +12,8 @@ def test_portfolio_valuation_uses_live_prices_and_flags_concentration(monkeypatc
     assert p["total_value"] == 4000.0                     # 10 x 300 + 1000
     assert p["allocation"] == {"equity": 0.75, "cash": 0.25}
     assert p["concentrated_positions"] == ["VTI"]
+    assert p["holdings"][0]["name"] == "Vanguard Total Stock Market ETF"
+    assert p["holdings"][1]["name"] == "CASH"            # no name stored: falls back to the symbol
 
 
 def test_missing_price_falls_back_to_purchase_price(monkeypatch):
