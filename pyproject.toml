@@ -25,3 +25,4 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+filterwarnings = ["ignore::langchain_core._api.beta_decorator.LangChainBetaWarning"]
