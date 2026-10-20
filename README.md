@@ -215,14 +215,14 @@ A plan costs about **7 calls** (9 with a revision). The red-team suite costs abo
 | SQL injection | Parameterized queries; job column names allow-listed (tested) |
 | Forged queue calls | QStash **signature verification** on `/worker`; the endpoint is disabled when no queue is configured |
 | Duplicate deliveries | Idempotent worker (completed or blocked jobs are skipped) |
-| Abuse / quota drain | API key (`secrets.compare_digest`), per-IP rate limit, input limits (Pydantic), daily LLM budget |
+| Abuse / quota drain | Per-IP rate limit (3 plans/min), daily LLM budget, input limits (Pydantic). The demo uses a public key (`demo-key`); set your own `API_KEY` to make the API private (`secrets.compare_digest`) |
 | Container compromise | Non-root user, runs with `--read-only --cap-drop ALL --security-opt no-new-privileges` |
 
 ---
 
 ## Web interface
 
-`app/static/index.html` is served by FastAPI, so there's no separate frontend deployment. It shows:
+`app/static/index.html` is served by FastAPI, so there's no separate frontend deployment. The API key box is pre-filled with the public demo key `demo-key`, so visitors can try it immediately. To make the API private, change `API_KEY` in `.env` (or on Render) and enter that key instead. It shows:
 - **live agent workflow** (guardrail → portfolio → retirement → reporter → judge), from the job's `progress` column
 - **chance of reaching the goal** as a colored meter
 - **outcomes chart**: bad, typical and good markets against the goal
@@ -240,7 +240,7 @@ A plan costs about **7 calls** (9 with a revision). The red-team suite costs abo
 git clone https://github.com/adityakumarprasad/FinPilot.git
 cd FinPilot
 uv sync
-cp .env.example .env          # fill in GEMINI_API_KEY, DATABASE_URL, FINNHUB_API_KEY, API_KEY
+cp .env.example .env          # fill in GEMINI_API_KEY, DATABASE_URL, FINNHUB_API_KEY (API_KEY defaults to demo-key)
 ```
 Create the tables and demo portfolio (or paste `sql/schema.sql` into Neon's SQL editor):
 ```bash
