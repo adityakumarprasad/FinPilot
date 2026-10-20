@@ -20,6 +20,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # Deploy hook URL from Render (Settings -> Deploy Hook). Secrets can't be used in `if:`, so it lives here.
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     steps:
       - uses: actions/checkout@v4
       - name: Image name must be lowercase
@@ -34,3 +37,6 @@ jobs:
           context: .
           push: true
           tags: ${{ env.IMAGE }}:latest
+      - name: Redeploy on Render
+        if: env.RENDER_DEPLOY_HOOK != ''
+        run: curl -fsS --retry 3 -X POST "$RENDER_DEPLOY_HOOK" > /dev/null && echo "Render deploy triggered"
