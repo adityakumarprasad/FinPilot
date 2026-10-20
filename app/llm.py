@@ -4,8 +4,10 @@ import hashlib
 import json
 import logging
 import os
+import warnings
 from datetime import date
 
+from langchain_core._api.beta_decorator import LangChainBetaWarning
 from langchain_core.exceptions import ModelAPIError, ModelRateLimitError
 from langchain_core.load import dumps, loads
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -17,6 +19,7 @@ from langgraph.types import RetryPolicy
 from app import config
 
 log = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", category=LangChainBetaWarning)   # langchain_core.load is marked beta
 
 model = ChatGoogleGenerativeAI(
     model=config.LLM_MODEL,
