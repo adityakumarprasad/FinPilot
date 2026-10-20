@@ -41,3 +41,8 @@ def test_rate_limit_blocks_too_many_plans(monkeypatch):
 def test_worker_endpoint_is_closed_without_queue(monkeypatch):
     monkeypatch.setattr(config, "QSTASH_TOKEN", "")
     assert client.post("/worker", json={"job_id": "x"}).status_code == 404
+
+
+def test_home_page_is_served_and_sanitizes_report():
+    page = client.get("/").text
+    assert "FinPilot" in page and "DOMPurify.sanitize" in page

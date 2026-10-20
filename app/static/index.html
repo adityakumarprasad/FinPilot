@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FinPilot</title>
+  <!-- marked turns the AI's Markdown into HTML; DOMPurify strips any script/HTML an attacker smuggles in -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+  <style>
+    :root { --bg: #f7f8fa; --card: #ffffff; --text: #1d2330; --muted: #667085; --line: #e4e7ec;
+            --accent: #2f6fed; --good: #12a150; --warn: #e08a00; --bad: #d92d20; --info: #3a7bd5; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #11141a; --card: #1a1f27; --text: #e6e9ef; --muted: #98a2b3; --line: #2b313c;
+              --accent: #6b9bff; --good: #3ccf7a; --warn: #f2a93b; --bad: #ff6b5e; --info: #6aa8ff; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+    h1 { margin: 0 0 4px; } .muted { color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+    input { padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 15px; }
+    button { margin-top: 14px; padding: 10px 22px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-size: 15px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: wait; }
+    .steps { display: flex; flex-wrap: wrap; gap: 8px; }
+    .step { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+    .step.done { border-color: var(--good); color: var(--good); }
+    .step.active { border-color: var(--accent); color: var(--accent); }
+    .big { font-size: 34px; font-weight: 700; }
+    .meter { height: 12px; background: var(--line); border-radius: 999px; overflow: hidden; }
+    .meter > div { height: 100%; border-radius: 999px; }
+    .outcome { display: grid; grid-template-columns: 110px 1fr 110px; align-items: center; gap: 10px; margin: 8px 0; font-size: 14px; }
+    .target-note { font-size: 13px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; }
+    .live { background: var(--good); } .cached { background: var(--info); } .stale { background: var(--warn); } .unavailable { background: var(--bad); }
+    .crit { display: grid; grid-template-columns: 170px 1fr 34px; gap: 10px; align-items: center; margin: 6px 0; font-size: 14px; }
+    .report h2 { font-size: 18px; margin-top: 20px; }
+    .alert { border-left: 4px solid var(--bad); }
+    .hidden { display: none; }
+    @media (max-width: 560px) { .outcome { grid-template-columns: 80px 1fr 80px; } .crit { grid-template-columns: 120px 1fr 30px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>FinPilot</h1>
+  <div class="muted">A LangGraph team of AI agents writes your plan. Every number comes from real market prices and a 10,000-run Monte Carlo simulation.</div>
+
+  <section class="card">
+    <div class="grid">
+      <label>API key <input id="key" type="password" autocomplete="off"></label>
+      <label>Age <input id="age" type="number" value="30"></label>
+      <label>Retirement age <input id="ret" type="number" value="60"></label>
+      <label>Monthly savings ($) <input id="monthly" type="number" value="1000"></label>
+      <label>Desired yearly income in retirement ($) <input id="income" type="number" value="40000"></label>
+    </div>
+    <label style="margin-top:12px">Goals <input id="goals" value="Retire comfortably and buy a house in 5 years"></label>
+    <button id="go">Create plan</button>
+    <span id="status" class="muted" style="margin-left:12px"></span>
+  </section>
+
+  <section id="progressCard" class="card hidden">
+    <strong>Agent workflow</strong>
+    <div id="steps" class="steps" style="margin-top:10px"></div>
+  </section>
+
+  <section id="blockedCard" class="card alert hidden"></section>
+
+  <div id="results" class="hidden">
+    <div class="grid">
+      <section class="card">
+        <div class="muted">Chance of reaching your goal</div>
+        <div id="prob" class="big"></div>
+        <div class="meter"><div id="probBar"></div></div>
+        <div id="targetNote" class="target-note" style="margin-top:8px"></div>
+      </section>
+      <section class="card">
+        <div class="muted">Judge score</div>
+        <div id="score" class="big"></div>
+        <div id="criteria"></div>
+        <div id="revised" class="target-note"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <strong>Outcomes at retirement (today's money)</strong>
+      <div id="outcomes" style="margin-top:10px"></div>
+    </section>
+
+    <section class="card">
+      <strong>Portfolio and price sources</strong>
+      <table style="margin-top:10px">
+        <thead><tr><th>Symbol</th><th>Class</th><th class="num">Price</th><th class="num">Value</th><th>Source</th><th>Status</th></tr></thead>
+        <tbody id="holdings"></tbody>
+      </table>
+    </section>
+
+    <section class="card report"><div id="report"></div></section>
+  </div>
+</main>
+
+<script>
+  const STEPS = ["guardrail", "portfolio", "retirement", "reporter", "judge"];
+  const LABELS = { guardrail: "🛡️ Guardrail", portfolio: "📊 Portfolio agent", retirement: "🎲 Retirement agent",
+                   reporter: "✍️ Reporter", judge: "⚖️ Judge" };
+  const $ = (id) => document.getElementById(id);
+  const money = (n) => "$" + Math.round(n).toLocaleString();
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const headers = () => ({ "Content-Type": "application/json", "X-API-Key": $("key").value });
+
+  function renderSteps(progress, status) {
+    $("progressCard").classList.remove("hidden");
+    const finished = new Set(progress || []);
+    const running = status === "running" || status === "pending";
+    const next = STEPS.find((s) => !finished.has(s));
+    $("steps").innerHTML = STEPS.map((s) => {
+      const cls = finished.has(s) ? "done" : (running && s === next ? "active" : "");
+      const icon = finished.has(s) ? "✅ " : (cls === "active" ? "⏳ " : "");
+      return `<span class="step ${cls}">${icon}${LABELS[s]}</span>`;
+    }).join("");
+  }
+
+  function renderResults(job) {
+    const sim = job.facts.simulation, portfolio = job.facts.portfolio;
+    const pct = Math.round(sim.success_probability * 100);
+    $("prob").textContent = pct + "%";
+    $("probBar").style.width = pct + "%";
+    $("probBar").style.background = pct >= 75 ? "var(--good)" : pct >= 40 ? "var(--warn)" : "var(--bad)";
+    $("targetNote").textContent = `Goal: ${money(sim.target)} (4% rule) · ${sim.assumptions.simulations.toLocaleString()} simulated futures`;
+
+    const max = Math.max(sim.good_case_p90, sim.target) * 1.05;
+    const row = (label, value, color) =>
+      `<div class="outcome"><span>${label}</span><div class="meter"><div style="width:${(value / max) * 100}%;background:${color}"></div></div><span>${money(value)}</span></div>`;
+    $("outcomes").innerHTML = row("Bad market", sim.bad_case_p10, "var(--bad)") + row("Typical", sim.median, "var(--warn)")
+      + row("Good market", sim.good_case_p90, "var(--good)") + row("Your goal", sim.target, "var(--accent)");
+
+    $("holdings").innerHTML = portfolio.holdings.map((h) => `<tr><td>${esc(h.symbol)}</td><td>${esc(h.asset_class)}</td>
+      <td class="num">${money(h.price)}</td><td class="num">${money(h.value)}</td>
+      <td>${esc(h.price_source)}${h.price_date ? " · " + esc(h.price_date) : ""}</td>
+      <td><span class="badge ${esc(h.price_status)}">${esc(h.price_status)}</span></td></tr>`).join("");
+
+    $("score").textContent = `${job.judge_score}/10`;
+    $("criteria").innerHTML = Object.entries(job.judge_criteria || {}).map(([name, v]) =>
+      `<div class="crit"><span>${esc(name.replaceAll("_", " "))}</span><div class="meter"><div style="width:${v * 50}%;background:${v === 2 ? "var(--good)" : v === 1 ? "var(--warn)" : "var(--bad)"}"></div></div><span>${v}/2</span></div>`).join("");
+    $("revised").textContent = job.revisions ? "↻ Revised once after the judge's feedback" : "Passed on the first draft";
+
+    $("report").innerHTML = DOMPurify.sanitize(marked.parse(job.report || ""));
+    $("results").classList.remove("hidden");
+  }
+
+  $("go").onclick = async () => {
+    $("results").classList.add("hidden"); $("blockedCard").classList.add("hidden");
+    const body = { age: +$("age").value, retirement_age: +$("ret").value, monthly_contribution: +$("monthly").value,
+                   desired_annual_income: +$("income").value, goals: $("goals").value };
+    const res = await fetch("/jobs", { method: "POST", headers: headers(), body: JSON.stringify(body) });
+    const job = await res.json();
+    if (!res.ok) { $("status").textContent = "Error: " + JSON.stringify(job.detail); return; }
+    $("go").disabled = true;
+    renderSteps([], "pending");
+
+    const timer = setInterval(async () => {
+      const r = await fetch("/jobs/" + job.job_id, { headers: headers() });
+      if (!r.ok) return;
+      const j = await r.json();
+      $("status").textContent = "Status: " + j.status;
+      renderSteps(j.progress, j.status);
+      if (!["completed", "failed", "blocked"].includes(j.status)) return;
+      clearInterval(timer);
+      $("go").disabled = false;
+      if (j.status === "completed") renderResults(j);
+      if (j.status === "blocked") {
+        $("blockedCard").innerHTML = `<strong>🛡️ Request blocked by the guardrail</strong><p>${esc(j.error)}</p>
+          <p class="muted">Your goals text looked like an instruction to the AI. Please rephrase it as a financial goal.</p>`;
+        $("blockedCard").classList.remove("hidden");
+      }
+      if (j.status === "failed") $("status").textContent = "Failed: " + j.error;
+    }, 2500);
+  };
+</script>
+</body>
+</html>
